@@ -7,8 +7,22 @@ parameters:
 
     level: 5
 
-    checkMissingIterableValueType: false
+    # PHPStan cannot know the runtime value of config('filament-resource-lock.user_model'),
+    # so it cannot verify whether the closure-based PHPDoc types will hold at runtime.
+    treatPhpDocTypesAsCertain: false
 
     ignoreErrors:
-        # ResourceLock uses forceFill which PHPStan cannot fully resolve.
-        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::forceFill\(\)#'
+        # These traits are designed for use in application code (Filament pages / Eloquent models),
+        # not inside the package itself, so they will always appear unused in static analysis.
+        - identifier: trait.unused
+
+        # The user model is resolved from config at runtime; its class is unknown to PHPStan.
+        -
+            identifier: class.notFound
+            message: '#App\\Models\\User not found#'
+
+        # Blade view names with package namespaces are valid at runtime but are plain strings
+        # from PHPStan's perspective.
+        -
+            identifier: argument.type
+            message: '#Parameter .1 \$view of function view expects#'

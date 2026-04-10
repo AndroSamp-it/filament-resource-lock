@@ -109,7 +109,7 @@ class ResourceLockManager
             $events = $this->decodeDatabaseEvents($lock->events);
             $events[] = $event;
 
-            $lock->events = json_encode($events, JSON_UNESCAPED_UNICODE);
+            $lock->events = $events;
             $lock->save();
 
             return $lock->fresh(['user']);
