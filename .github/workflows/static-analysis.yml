@@ -31,7 +31,7 @@ jobs:
           restore-keys: phpstan-
 
       - name: Install dependencies
-        run: composer install --prefer-stable --prefer-dist --no-interaction
+        run: composer install --prefer-dist --no-interaction
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress
