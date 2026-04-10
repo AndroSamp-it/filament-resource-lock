@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a new feature or improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement! The package is actively evolving, so new ideas are very welcome.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: Describe the problem you are trying to solve or the use case that motivates this request.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or change you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative approaches you have considered or already tried?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, links, code snippets, or anything else that might help.

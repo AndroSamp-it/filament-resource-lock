@@ -1,0 +1,48 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "androsamp/filament-resource-lock",
+    "description": "Resource locking for Filament edit pages via Livewire heartbeat or broadcast.",
+    "license": "MIT",
+    "keywords": [
+        "filament",
+        "filamentphp",
+        "laravel",
+        "livewire",
+        "resource-lock"
+    ],
+    "require": {
+        "php": "^8.2",
+        "filament/filament": "^5.0",
+        "laravel/framework": "^12.0 || ^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "phpunit/phpunit": "^11.0 || ^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Androsamp\\FilamentResourceLock\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Androsamp\\FilamentResourceLock\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test:unit": "vendor/bin/phpunit --testsuite=Unit",
+        "test:feature": "vendor/bin/phpunit --testsuite=Feature",
+        "analyse": "vendor/bin/phpstan analyse"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Androsamp\\FilamentResourceLock\\FilamentResourceLockServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
