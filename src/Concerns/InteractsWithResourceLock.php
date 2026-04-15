@@ -11,6 +11,7 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Filament\Support\Facades\FilamentView;
+use Filament\Support\Livewire\Partials\PartialsComponentHook;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\URL;
@@ -53,23 +54,42 @@ trait InteractsWithResourceLock
         $this->resourceLockSessionId = session ()->getId ();
         $this->resourceLockReleaseUrl = $this->getResourceLockReleaseUrl ();
 
-        $this->resourceLockHeartbeat ();
+        $this->performHeartbeat (skipRenderWhenStale: false);
     }
 
     #[On('resourceLock::resourceLockHeartbeat')]
     public function resourceLockHeartbeat(): void
     {
+        // Called via Livewire event dispatch (AJAX) — safe to skip re-render when
+        // nothing requires a visual update, so open modals are not disrupted.
+        $this->performHeartbeat (skipRenderWhenStale: true);
+    }
+
+    private function performHeartbeat(bool $skipRenderWhenStale): void
+    {
         $record = $this->getLockableRecord ();
 
         if (! $record) {
+            if ($skipRenderWhenStale) {
+                $this->suppressFilamentPartialRender ();
+            }
             return;
         }
+
+        $wasConflict = $this->resourceLockConflict;
+
+        // Detect force-takeover before onLockAcquired clears the flag from the DB.
+        $forceTakeover = false;
 
         $result = $this->getResourceLockManager ()->acquireOrRefresh (
             record: $record,
             userId: $this->getResourceLockUserId (),
             sessionId: $this->resourceLockSessionId,
         );
+
+        if ($result->acquired) {
+            $forceTakeover = $this->resourceLockSessionId === ($result->lock?->force_takeover_session_id ?? '');
+        }
 
         $hasPendingRequest = $result->lock
             ? $this->processPendingLockEvents ($result->lock, $record)
@@ -87,6 +107,32 @@ trait InteractsWithResourceLock
             yourSessionId: hash ('sha256', session ()->getId () . $salt),
             lockedSessionId: hash ('sha256', ($result->lock?->session_id ?? '') . $salt),
         );
+
+        if (! $skipRenderWhenStale) {
+            return;
+        }
+
+        if (! $forceTakeover && $wasConflict === $this->resourceLockConflict) {
+            // Nothing changed visually — skip both HTML and action-modal partial re-render.
+            // Without calling skipPartialRender(), Filament's PartialsComponentHook would
+            // detect the method call and re-render the "action-modals" partial, which morphs
+            // the DOM and resets Alpine.js modal state (closing any open modals).
+            $this->suppressFilamentPartialRender ();
+        } else {
+            // Conflict state changed or force-takeover — need a full re-render so the form
+            // reflects the new disabled state. forceRender() bypasses partial-only rendering.
+            $this->triggerFilamentForceRender ();
+        }
+    }
+
+    private function suppressFilamentPartialRender(): void
+    {
+        app (PartialsComponentHook::class)->skipPartialRender ($this);
+    }
+
+    private function triggerFilamentForceRender(): void
+    {
+        app (PartialsComponentHook::class)->forceRender ($this);
     }
 
     public function unmountInteractsWithResourceLock(): void

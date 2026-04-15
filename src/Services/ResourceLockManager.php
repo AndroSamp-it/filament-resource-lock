@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class ResourceLockManager
@@ -219,12 +220,13 @@ class ResourceLockManager
 
             if (! $lock) {
                 $lock = ResourceLock::query()->create([
-                    'lockable_type' => $record::class,
-                    'lockable_id' => $record->getKey(),
-                    'user_id' => $userId,
-                    'session_id' => $sessionId,
+                    'lockable_type'  => $record::class,
+                    'lockable_id'    => $record->getKey(),
+                    'user_id'        => $userId,
+                    'session_id'     => $sessionId,
+                    'lock_cycle_id'  => (string) Str::uuid(),
                     'last_heartbeat_at' => $now,
-                    'expires_at' => $expiresAt,
+                    'expires_at'     => $expiresAt,
                 ]);
 
                 return new LockResult(true, $lock->fresh(['user']));
@@ -413,17 +415,18 @@ class ResourceLockManager
     {
         $lock = new ResourceLock();
         $lock->forceFill([
-            'lockable_type' => $payload['lockable_type'] ?? null,
-            'lockable_id' => $payload['lockable_id'] ?? null,
-            'user_id' => $payload['user_id'] ?? null,
-            'session_id' => $payload['session_id'] ?? null,
-            'last_heartbeat_at' => $payload['last_heartbeat_at'] ?? null,
-            'expires_at' => $payload['expires_at'] ?? null,
-            'force_takeover' => $payload['force_takeover'] ?? 0,
-            'force_takeover_user_id' => $payload['force_takeover_user_id'] ?? null,
+            'lockable_type'             => $payload['lockable_type'] ?? null,
+            'lockable_id'               => $payload['lockable_id'] ?? null,
+            'user_id'                   => $payload['user_id'] ?? null,
+            'session_id'                => $payload['session_id'] ?? null,
+            'lock_cycle_id'             => $payload['lock_cycle_id'] ?? null,
+            'last_heartbeat_at'         => $payload['last_heartbeat_at'] ?? null,
+            'expires_at'                => $payload['expires_at'] ?? null,
+            'force_takeover'            => $payload['force_takeover'] ?? 0,
+            'force_takeover_user_id'    => $payload['force_takeover_user_id'] ?? null,
             'force_takeover_session_id' => $payload['force_takeover_session_id'] ?? null,
-            'events' => $payload['events'] ?? [],
-            'user_display_name' => $payload['user_display_name'] ?? null,
+            'events'                    => $payload['events'] ?? [],
+            'user_display_name'         => $payload['user_display_name'] ?? null,
         ]);
         $lock->setAttribute('_payload', $payload);
 
@@ -453,32 +456,40 @@ class ResourceLockManager
 
     /**
      * Claims a Redis payload for the given session, clearing any releasing flags.
+     * A new lock_cycle_id is issued when the owning session changes.
      */
     private function claimRedisPayload(array $payload, ?int $userId, ?string $sessionId, CarbonImmutable $now, CarbonImmutable $expiresAt): array
     {
+        $ownerChanged = (string) ($payload['session_id'] ?? '') !== (string) ($sessionId ?? '');
+
         unset($payload['releasing'], $payload['releasing_at'], $payload['releasing_expires_at']);
 
         return array_merge($payload, [
-            'user_id' => $userId,
-            'session_id' => $sessionId,
+            'user_id'           => $userId,
+            'session_id'        => $sessionId,
+            'lock_cycle_id'     => $ownerChanged ? (string) Str::uuid() : ($payload['lock_cycle_id'] ?? (string) Str::uuid()),
             'last_heartbeat_at' => $now->toDateTimeString(),
-            'expires_at' => $expiresAt->toDateTimeString(),
+            'expires_at'        => $expiresAt->toDateTimeString(),
             'user_display_name' => $this->resolveCurrentUserDisplayName(),
-            '_acquired' => true,
+            '_acquired'         => true,
         ]);
     }
 
     /**
      * Refreshes a database lock record for the given session, clearing any releasing flags.
+     * A new lock_cycle_id is generated whenever the owning session changes.
      */
     private function refreshDatabaseLock(ResourceLock $lock, ?int $userId, ?string $sessionId, CarbonImmutable $now, CarbonImmutable $expiresAt): ResourceLock
     {
+        $ownerChanged = (string) ($lock->session_id ?? '') !== (string) ($sessionId ?? '');
+
         $lock->forceFill([
-            'user_id' => $userId,
-            'session_id' => $sessionId,
-            'last_heartbeat_at' => $now,
-            'expires_at' => $expiresAt,
-            'releasing' => false,
+            'user_id'             => $userId,
+            'session_id'          => $sessionId,
+            'lock_cycle_id'       => $ownerChanged ? (string) Str::uuid() : ($lock->lock_cycle_id ?? (string) Str::uuid()),
+            'last_heartbeat_at'   => $now,
+            'expires_at'          => $expiresAt,
+            'releasing'           => false,
             'releasing_expires_at' => null,
         ])->save();
 

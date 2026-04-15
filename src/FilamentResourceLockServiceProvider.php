@@ -3,6 +3,9 @@
 namespace Androsamp\FilamentResourceLock;
 
 use Androsamp\FilamentResourceLock\Commands\InstallFilamentResourceLockCommand;
+use Androsamp\FilamentResourceLock\Http\Livewire\ResourceAuditHistoryTable;
+use Androsamp\FilamentResourceLock\Http\Livewire\ResourceLockObserver;
+use Androsamp\FilamentResourceLock\Services\ResourceAuditService;
 use Androsamp\FilamentResourceLock\Services\ResourceLockManager;
 use Androsamp\FilamentResourceLock\Services\ResourceLockUpdateDispatcher;
 use Androsamp\FilamentResourceLock\Transports\BroadcastResourceLockUpdateTransport;
@@ -17,11 +20,6 @@ use Livewire\Livewire;
 
 class FilamentResourceLockServiceProvider extends ServiceProvider
 {
-    public function packageBooted(): void
-    {
-        Livewire::component('resource-lock-observer', ResourceLockObserver::class);
-    }
-
     public function register(): void
     {
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'filament-resource-lock');
@@ -30,10 +28,14 @@ class FilamentResourceLockServiceProvider extends ServiceProvider
         $this->app->singleton(HeartbeatResourceLockUpdateTransport::class);
         $this->app->singleton(BroadcastResourceLockUpdateTransport::class);
         $this->app->singleton(ResourceLockUpdateDispatcher::class);
+        $this->app->singleton(ResourceAuditService::class);
     }
 
     public function boot(): void
     {
+        Livewire::component('resource-lock-observer', ResourceLockObserver::class);
+        Livewire::component('resource-lock-audit-history', ResourceAuditHistoryTable::class);
+
         $this->registerBroadcastChannel();
         $this->registerReleaseRoute();
         $this->loadTranslationsFrom(__DIR__ . '/../resources/lang', 'filament-resource-lock');
@@ -43,7 +45,9 @@ class FilamentResourceLockServiceProvider extends ServiceProvider
         ], 'filament-resource-lock-config');
 
         $this->publishes([
-            __DIR__ . '/../database/migrations/2026_03_24_000000_create_resource_locks_table.php' => database_path('migrations/2026_03_24_000000_create_resource_locks_table.php'),
+            __DIR__ . '/../database/migrations/2026_03_24_000000_create_resource_locks_table.php'      => database_path('migrations/2026_03_24_000000_create_resource_locks_table.php'),
+            __DIR__ . '/../database/migrations/2026_04_14_000000_create_resource_audit_table.php'      => database_path('migrations/2026_04_14_000001_create_resource_lock_audits_table.php'),
+            __DIR__ . '/../database/migrations/2026_04_14_000001_enhance_resource_lock_audits_table.php' => database_path('migrations/2026_04_14_000002_enhance_resource_lock_audits_table.php'),
         ], 'filament-resource-lock-migrations');
 
         $this->publishes([

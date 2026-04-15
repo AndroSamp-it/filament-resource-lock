@@ -2,8 +2,10 @@
 
 namespace Androsamp\FilamentResourceLock\Models;
 
+use Androsamp\FilamentResourceLock\Models\ResourceLockAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 
@@ -13,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int|string $lockable_id
  * @property int|null $user_id
  * @property string|null $session_id
+ * @property string|null $lock_cycle_id
  * @property Carbon|null $last_heartbeat_at
  * @property Carbon|null $expires_at
  * @property bool $releasing
@@ -32,6 +35,7 @@ class ResourceLock extends Model
         'lockable_id',
         'user_id',
         'session_id',
+        'lock_cycle_id',
         'last_heartbeat_at',
         'expires_at',
     ];
@@ -66,5 +70,10 @@ class ResourceLock extends Model
     public function lockable(): MorphTo
     {
         return $this->morphTo('lockable', 'lockable_type', 'lockable_id');
+    }
+
+    public function audits(): HasMany
+    {
+        return $this->hasMany(ResourceLockAudit::class, 'lock_cycle_id', 'lock_cycle_id');
     }
 }

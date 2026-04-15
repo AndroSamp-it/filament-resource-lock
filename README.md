@@ -1,62 +1,78 @@
 # Filament Resource Lock
 
-Record locking on **Filament v5** edit pages: while one user holds the lock, others see a warning, can request a release, or (with permission) save and hand the lock over. The package focuses on **Livewire heartbeat**, reliable behavior in **Filament SPA mode**, and optional **push updates via Laravel Echo**.
+Record-level locking for **Filament v5** edit pages with optional **audit history**.
 
-- **PHP** `^8.3`
-- **Laravel** `^12.0 || ^13.0`
-- **Filament** `^5.0`
+When one user edits a record, others immediately see who owns the lock, get blocked from accidental overwrite, and can request handoff. The package supports both classic polling and Laravel Echo push updates.
 
-Packagist: [`androsamp/filament-resource-lock`](https://packagist.org/packages/androsamp/filament-resource-lock).
+## Preview
 
-### Filament compatibility
+<p align="center">
+  <img src="https://raw.githubusercontent.com/AndroSamp-it/filament-resource-lock/refs/heads/main/plugin-preview.png" alt="Filament Resource Lock preview" width="1100">
+</p>
 
-Only **Filament v5** is supported (see `composer.json`). There is **no full support for older major versions** (e.g. **Filament v3** or **v4**), and none is planned on this package branch: panel APIs, form schemas, and render hooks differ; for legacy stacks use packages built for those versions (including [kenepa/resource-lock](https://github.com/kenepa/resource-lock) and compatible forks).
+<p align="center">
+  Lock state, collaboration actions, and audit history in one flow.
+</p>
 
-### Roadmap
-
-Functionality **will be expanded** as needed (extra locking flows, integrations, admin ergonomics, etc.). The current surface is intentionally small; backward compatibility will be preserved where reasonable, with breaking changes handled via semantic versioning and release notes.
-
----
-
-## Why this package when [blendbyte/filament-resource-lock](https://github.com/blendbyte/filament-resource-lock) exists?
-
-[blendbyte/filament-resource-lock](https://github.com/blendbyte/filament-resource-lock) is a mature fork of [kenepa/resource-lock](https://github.com/kenepa/resource-lock) with a panel plugin, audit trail, lock manager UI, and SPA polling. This package is **narrower in scope** by design but differs in **architecture and priorities**:
-
-| Aspect | This package | blendbyte / kenepa line |
-|--------|--------------|-------------------------|
-| **Integration** | Auto-registered `ServiceProvider`, no `ResourceLockPlugin::make()` | Plugin must be registered on the `Panel` |
-| **Lock storage** | **Database or Redis** (`config` → `storage.driver`) | Primarily a DB table |
-| **Update delivery** | **`heartbeat`** — poll every `heartbeat_seconds`; **`broadcast`** — Echo events **right after** server-side changes, so **notifications and state updates arrive faster** than with heartbeat alone | Includes SPA polling; push is not a first-class “driver” |
-| **Filament SPA + `wire:navigate`** | Heartbeat via **Alpine `setInterval`** and **global** `Livewire.dispatch` so polling does not stop or target the wrong component; lock release on leave including **`x-destroy`** | Handled via plugin polling options |
-| **Soft release on tab close** | Signed route + **grace period**: same session can reclaim quickly after reload | Emphasis on timeout and scheduler |
-| **Collaboration** | Built-in **“Request unlock”** / **“Save and release”** with notifications to the lock owner | Read-only, force-unlock, events; different UX |
-| **Audit, lock manager UI, scheduled `clear-expired`** | Not included (minimal footprint) | Available in the blendbyte ecosystem |
-
-**Summary:** choose this package if you want **Redis**, **Echo with less reliance on polling**, predictable **SPA** behavior, and **lightweight setup without a panel plugin**. Prefer [blendbyte/filament-resource-lock](https://github.com/blendbyte/filament-resource-lock) if you need **audit**, an **admin screen for all locks**, and the familiar **kenepa/blendbyte** API.
+- **PHP:** `^8.3`
+- **Laravel:** `^12.0 || ^13.0`
+- **Filament:** `^5.0`
+- **Packagist:** [`androsamp/filament-resource-lock`](https://packagist.org/packages/androsamp/filament-resource-lock)
 
 ---
 
-## Installation
+## Contents
+
+- [Why this package](#why-this-package)
+- [Install](#install)
+- [Quick start (3 steps)](#quick-start-3-steps)
+- [Configuration](#configuration)
+- [Broadcast mode (Laravel Echo)](#broadcast-mode-laravel-echo)
+- [Audit history (snapshots + rollback)](#audit-history-snapshots--rollback)
+- [Custom fields in audit diff](#custom-fields-in-audit-diff)
+- [Soft release route](#soft-release-route)
+- [Localization](#localization)
+- [Development notes](#development-notes)
+- [License](#license)
+
+---
+
+## Why this package
+
+### Main goals
+
+- **Safe collaborative editing** on `EditRecord` pages.
+- **Predictable behavior in SPA (`wire:navigate`)**.
+- **Simple integration** without extra panel plugin registration.
+- **Configurable transport and storage** (`heartbeat` / `broadcast`, `database` / `redis`).
+- **Optional built-in audit** with visual per-field diff and selective rollback.
+
+### Key behavior
+
+- User A opens record -> lock is acquired (or refreshed).
+- User B opens same record -> form/save are disabled, lock owner is shown.
+- User B can request unlock (`ask_to_unblock`), if enabled.
+- User A can save and hand over lock (`save_and_unlock`), if enabled.
+- In `broadcast` mode, updates are pushed via Echo with lower latency than polling.
+
+---
+
+## Install
 
 ```bash
 composer require androsamp/filament-resource-lock
-```
-
-Run the install command and migrate:
-
-```bash
 php artisan filament-resource-lock:install
 php artisan migrate
 ```
 
-The command will:
+`filament-resource-lock:install` does the following:
 
-- publish `config/filament-resource-lock.php`;
-- publish the resource locks table migration;
-- copy `resources/js/filament-resource-lock/echo.js` with Laravel Echo bootstrap;
-- add `import './filament-resource-lock/echo';` to `resources/js/bootstrap.js` if the line is missing.
+- publishes `config/filament-resource-lock.php`;
+- publishes package migrations (locks + audit tables);
+- publishes `resources/js/filament-resource-lock/echo.js`;
+- injects `import './filament-resource-lock/echo';` into `resources/js/bootstrap.js` (if missing).
 
-You can publish individual tags only:
+### Publish only specific resources
 
 ```bash
 php artisan vendor:publish --tag=filament-resource-lock-config
@@ -64,53 +80,11 @@ php artisan vendor:publish --tag=filament-resource-lock-migrations
 php artisan vendor:publish --tag=filament-resource-lock-assets
 ```
 
-### Configuring `config/filament-resource-lock.php`
-
-Review at least:
-
-- **`user_model`** — user class (default `App\Models\User`).
-- **`user_display_column`** — attribute for “Locked by …” in the UI and in the Redis payload.
-- **`storage.driver`** — `database` or `redis` (Redis must be configured in Laravel).
-- **`update_driver`** — `heartbeat` or `broadcast`.
-- **`ttl_seconds`**, **`release_grace_seconds`**, **`transports.*`** — heartbeat / renewal / post-unload grace timings.
-
-Permissions for modal actions (or `null` in `permission` to skip checks):
-
-- `permission.save_and_unlock`
-- `permission.ask_to_unblock`
-
-Uses the standard `auth()->user()->can(...)`.
-
 ---
 
-## `broadcast` mode (Laravel Echo)
+## Quick start (3 steps)
 
-With **`heartbeat`**, the client only learns about lock changes on the next timer tick (e.g. every 10 seconds), plus Livewire request latency. With **`broadcast`**, the server pushes to the record channel — **unlock requests, lock transfers, etc. arrive much sooner** than with heartbeat alone (roughly hundreds of milliseconds vs. the poll interval). Your own lock is still renewed periodically on the client; see `renew_interval_seconds` in config.
-
-### Official documentation
-
-Everything below assumes Laravel’s standard broadcasting stack. Environment variables, driver choice (**Reverb**, **Pusher**, **Ably**, etc.), and server setup are covered here:
-
-**[Laravel — Broadcasting](https://laravel.com/docs/broadcasting)**
-
-Follow that guide until ordinary broadcast events and Echo subscriptions work (including private channel authorization).
-
-### Enabling broadcast for this package (short checklist)
-
-1. **Per Laravel docs**, enable broadcasting: `BROADCAST_CONNECTION`, broker packages if needed, `php artisan install:broadcasting` (or manual `config/broadcasting.php`), run **Reverb** / configure **Pusher**, etc.
-2. **Frontend.** Ensure your Vite bundle includes **laravel-echo** and your broker client (e.g. **pusher-js** for Pusher), and that the browser exposes **`window.Echo`** with **`private()`**, as in the Echo client section of the docs.
-3. **Package assets.** After `php artisan filament-resource-lock:install`, you get `resources/js/filament-resource-lock/echo.js` and the import in `resources/js/bootstrap.js`. Align `echo.js` with your broker and `.env` keys (host, port, `VITE_*` — see the same Laravel documentation).
-4. **Package config.** Set `'update_driver' => 'broadcast'` in `config/filament-resource-lock.php`. Adjust `transports.broadcast` if needed (`channel_prefix`, `event`, `renew_interval_seconds`).
-
-**From the package:** a private channel `{channel_prefix}.{modelHash}.{id}` is registered automatically; by default any authenticated user may subscribe. Tighten authorization in your app (custom channel logic, etc.) if required.
-
----
-
-## Usage
-
-### 1. Model
-
-Add the lock relation trait:
+### 1) Add lock relation to model
 
 ```php
 use Androsamp\FilamentResourceLock\Concerns\HasResourceLocks;
@@ -122,11 +96,7 @@ class Customer extends Model
 }
 ```
 
-Adds the `resourceLock()` morph relation. In **`database`** mode it is useful for eager loading; in **`redis`** mode live state comes from cache via `ResourceLockManager`.
-
-### 2. `EditRecord` page
-
-Add the page trait:
+### 2) Add lock behavior to `EditRecord` page
 
 ```php
 use Androsamp\FilamentResourceLock\Concerns\InteractsWithResourceLock;
@@ -140,15 +110,7 @@ class EditCustomer extends EditRecord
 }
 ```
 
-Livewire will call `bootInteractsWithResourceLock`, `mountInteractsWithResourceLock`, and related hooks automatically (trait naming convention).
-
-Behavior:
-
-- Opening a record runs **acquire/refresh** (heartbeat).
-- If another session holds the lock, the form and save action are **disabled** and a modal appears; actions include “Back to list”, and with permissions “Save and release” / “Request unlock”.
-- The lock owner can accept or decline via **Filament Notifications**.
-
-### 3. List table column
+### 3) Show lock indicator in list table
 
 ```php
 use Androsamp\FilamentResourceLock\Resources\Columns\ResourceLockColumn;
@@ -163,27 +125,215 @@ public static function table(Table $table): Table
 }
 ```
 
-The icon and tooltip reflect an **active** lock (respecting TTL and `releasing` state after soft-release).
+---
+
+## Configuration
+
+All options live in `config/filament-resource-lock.php`.
+
+### Most important keys
+
+- `update_driver`: `heartbeat` or `broadcast`.
+- `storage.driver`: `database` or `redis`.
+- `ttl_seconds`: lock expiration window without heartbeat.
+- `release_grace_seconds`: grace period for soft release in broadcast flow.
+- `stale_soft_release_ignore_seconds`: protection from stale unload pings.
+- `user_model`: lock owner model class.
+- `user_display_column`: attribute shown in UI and notifications.
+- `permission.save_and_unlock.*`: enable/guard transfer action.
+- `permission.ask_to_unblock.*`: enable/guard unlock request action.
+- `audit.*`: audit feature toggles and retention.
+
+### Permissions
+
+By default, actions use `auth()->user()?->can(...)`:
+
+- `filament-resource-lock.save_and_unlock`
+- `filament-resource-lock.ask_to_unblock`
+
+Set permission to `null` to skip policy check for that action.
+
+### Example config skeleton
+
+```php
+return [
+    'update_driver' => 'heartbeat', // heartbeat | broadcast
+
+    'storage' => [
+        'driver' => 'database', // database | redis
+    ],
+
+    'ttl_seconds' => 20,
+    'release_grace_seconds' => 3,
+
+    'permission' => [
+        'save_and_unlock' => [
+            'enabled' => true,
+            'permission' => 'filament-resource-lock.save_and_unlock',
+        ],
+        'ask_to_unblock' => [
+            'enabled' => true,
+            'permission' => 'filament-resource-lock.ask_to_unblock',
+        ],
+    ],
+
+    'audit' => [
+        'enabled' => true,
+        'table' => 'resource_lock_audits',
+        'max_entries_per_resource' => 500,
+    ],
+];
+```
 
 ---
 
-## Soft-release route
+## Broadcast mode (Laravel Echo)
 
-The package registers a signed GET route `filament-resource-lock.release` (`web`, `signed` middleware). In **broadcast** mode it runs when the tab closes or on SPA navigation to mark the lock as releasing with a **grace period** — handy when the user simply reloads the page.
+`heartbeat` checks state on interval (for example, every 10 seconds).  
+`broadcast` pushes updates through private channels, so lock changes and notifications arrive almost instantly.
 
-Ensure `APP_URL` in `.env` matches your application URL or signed URLs may fail validation.
+### Setup checklist
+
+1. Configure Laravel broadcasting (Reverb/Pusher/Ably/etc.) per official docs.
+2. Make sure frontend exposes `window.Echo` with `private()`.
+3. Keep published `resources/js/filament-resource-lock/echo.js` aligned with your broker/env setup.
+4. Set:
+
+```php
+'update_driver' => 'broadcast'
+```
+
+5. Optionally tune:
+   - `transports.broadcast.channel_prefix`
+   - `transports.broadcast.event`
+   - `transports.broadcast.renew_interval_seconds`
+
+Official guide: [Laravel Broadcasting](https://laravel.com/docs/broadcasting)
+
+---
+
+## Audit history (snapshots + rollback)
+
+The package can store versioned snapshots of form state and render visual per-field diffs.
+
+### What happens on save
+
+1. Snapshot of previous state is captured.
+2. New snapshot is captured after save.
+3. Changed fields are computed (`old` vs `new`).
+4. A new audit version is stored in `resource_lock_audits`.
+5. If limit is exceeded, oldest rows are pruned (`audit.max_entries_per_resource`).
+
+### Add audit to `EditRecord`
+
+```php
+use Androsamp\FilamentResourceLock\Concerns\HasResourceAudit;
+use Androsamp\FilamentResourceLock\Concerns\InteractsWithResourceLock;
+use Filament\Resources\Pages\EditRecord;
+
+class EditProduct extends EditRecord
+{
+    use InteractsWithResourceLock;
+    use HasResourceAudit;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            // ... other actions
+            $this->getAuditHistoryAction(),
+        ];
+    }
+}
+```
+
+`HasResourceAudit` works standalone, but together with lock trait it groups entries by `lock_cycle_id`.
+
+### Rollback selected fields
+
+From the audit history slide-over:
+
+- open a version;
+- choose fields via checkbox list;
+- apply rollback.
+
+The service restores selected field values and creates a **new** audit version representing rollback changes.
+
+### Supported diff renderers
+
+- `TextInput` -> plain before/after.
+- `TextInput (numeric)` -> before/after + proportional bar.
+- `Select` -> label-aware badge diff.
+- `Toggle` -> visual on/off diff.
+- `RichEditor`, `MarkdownEditor` -> rendered rich content diff blocks.
+- `KeyValue / JSON` -> unified `+/-` style lines.
+- Other fields (`Textarea`, `DatePicker`, etc.) -> plain before/after.
+
+---
+
+## Custom fields in audit diff
+
+For custom Filament fields, add `HasAuditDiffPreview` to provide custom HTML previews in history modal.
+
+```php
+use Androsamp\FilamentResourceLock\Forms\Concerns\HasAuditDiffPreview;
+use Filament\Forms\Components\Field;
+
+class MapPicker extends Field
+{
+    use HasAuditDiffPreview;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->auditDiffPreviewUsing(function (mixed $state): string {
+            $lat = is_array($state) ? ($state['lat'] ?? '-') : '-';
+            $lng = is_array($state) ? ($state['lng'] ?? '-') : '-';
+
+            return '<p class="text-sm">' . e($lat) . ', ' . e($lng) . '</p>';
+        });
+    }
+}
+```
+
+Security note: callback output is rendered as trusted HTML. Always escape user-controlled fragments.
+
+---
+
+## Soft release route
+
+The package registers signed route `filament-resource-lock.release` (`web`, `signed` middleware).
+
+In broadcast flow it is used on tab close / SPA leave:
+
+- lock is marked as releasing for a short grace period;
+- same session can quickly reclaim after refresh;
+- other sessions respect grace window.
+
+Make sure `APP_URL` is correct, otherwise signed URL validation may fail.
 
 ---
 
 ## Localization
 
-Strings load from the package (`filament-resource-lock::resource-lock.*`). Publish or override language files as needed (bundled `en` and `ru`).
+Translations are loaded from:
+
+- `filament-resource-lock::resource-lock.*`
+
+Included locales:
+
+- `en`
+- `ru`
 
 ---
 
-## Developing the package (monorepo / path repository)
+## Development notes
 
-If the package is required via `path` in the app’s root `composer.json`, `composer dump-autoload` is usually enough after code changes.
+If package is connected via local `path` repository in monorepo, after code changes it is usually enough to run:
+
+```bash
+composer dump-autoload
+```
 
 ---
 

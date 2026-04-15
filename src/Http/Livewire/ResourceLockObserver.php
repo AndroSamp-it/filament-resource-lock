@@ -1,6 +1,6 @@
 <?php
 
-namespace Androsamp\FilamentResourceLock;
+namespace Androsamp\FilamentResourceLock\Http\Livewire;
 
 use Livewire\Component;
 

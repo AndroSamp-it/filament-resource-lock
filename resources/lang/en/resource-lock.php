@@ -44,4 +44,50 @@ return [
             'body' => ':user released the resource.',
         ],
     ],
+
+    'audit' => [
+        'action_label'        => 'Change history',
+        'modal_heading'       => 'Change history',
+        'close'               => 'Close',
+        'table_heading'       => 'Saved versions',
+        'empty_state_heading' => 'No changes recorded yet',
+        'empty_state_description' => 'Changes will appear here after each save while a lock is held.',
+
+        'columns' => [
+            'version'    => 'Version',
+            'date'       => 'Date',
+            'author'     => 'Author',
+            'changes'    => 'Changes',
+            'lock_cycle' => 'Lock session',
+        ],
+
+        'actions' => [
+            'view_diff' => 'View diff',
+            'rollback_changes' => 'Rollback changes',
+        ],
+
+        'rollback' => [
+            'modal_heading' => 'Rollback changes · v:version',
+            'modal_description' => 'Select fields to restore to their "WAS" value from this version.',
+            'fields_label' => 'Fields to rollback',
+            'submit' => 'Rollback selected',
+            'success' => 'Rollback completed for :count fields.',
+            'errors' => [
+                'empty_selection' => 'Select at least one field to rollback.',
+                'failed' => 'Failed to rollback the selected changes.',
+            ],
+        ],
+
+        'diff' => [
+            'modal_heading'   => 'What changed · v:version',
+            'heading'         => 'What changed',
+            'was'             => 'WAS',
+            'became'          => 'BECAME',
+            'yes'             => 'Yes',
+            'no'              => 'No',
+            'changes_count'   => 'changes',
+            'snapshot_date'   => 'Snapshot from :date · :author',
+            'snapshot_meta'   => 'Snapshot from :date · :author',
+        ],
+    ],
 ];

@@ -1,7 +1,3 @@
-@once
-    @vite('resources/js/app.js')
-@endonce
-
 @php
     $driver = $resourceLockUpdateDriver ?? config('filament-resource-lock.update_driver', 'heartbeat');
     $ttlSec = (int) config('filament-resource-lock.ttl_seconds', 20);

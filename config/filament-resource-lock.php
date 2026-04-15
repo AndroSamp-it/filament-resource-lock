@@ -63,5 +63,11 @@ return [
             'enabled' => true,
             'permission' => 'filament-resource-lock.ask_to_unblock', // null = no permission required
         ],
-    ]
+    ],
+
+    'audit' => [
+        'enabled' => true,
+        'table' => 'resource_lock_audits',
+        'max_entries_per_resource' => 500,
+    ],
 ];

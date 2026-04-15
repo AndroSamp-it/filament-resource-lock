@@ -44,4 +44,50 @@ return [
             'body' => ':user освободил ресурс.',
         ],
     ],
+
+    'audit' => [
+        'action_label'        => 'История изменений',
+        'modal_heading'       => 'История изменений',
+        'close'               => 'Закрыть',
+        'table_heading'       => 'Сохранённые версии',
+        'empty_state_heading' => 'Изменений пока нет',
+        'empty_state_description' => 'Изменения появятся здесь после каждого сохранения при активной блокировке.',
+
+        'columns' => [
+            'version'    => 'Версия',
+            'date'       => 'Дата',
+            'author'     => 'Автор',
+            'changes'    => 'Изменений',
+            'lock_cycle' => 'Сессия блокировки',
+        ],
+
+        'actions' => [
+            'view_diff' => 'Посмотреть изменения',
+            'rollback_changes' => 'Откатить изменения',
+        ],
+
+        'rollback' => [
+            'modal_heading' => 'Откат изменений · v:version',
+            'modal_description' => 'Выберите поля, которые нужно вернуть к состоянию "БЫЛО" из этой версии.',
+            'fields_label' => 'Поля для отката',
+            'submit' => 'Откатить выбранное',
+            'success' => 'Откат выполнен для :count полей.',
+            'errors' => [
+                'empty_selection' => 'Выберите хотя бы одно поле для отката.',
+                'failed' => 'Не удалось выполнить откат выбранных изменений.',
+            ],
+        ],
+
+        'diff' => [
+            'modal_heading'   => 'Что изменилось · v:version',
+            'heading'         => 'Что изменилось',
+            'was'             => 'БЫЛО',
+            'became'          => 'СТАЛО',
+            'yes'             => 'Да',
+            'no'              => 'Нет',
+            'changes_count'   => 'изменений',
+            'snapshot_date'   => 'Снимок от :date · :author',
+            'snapshot_meta'   => 'Снимок от :date · :author',
+        ],
+    ],
 ];
