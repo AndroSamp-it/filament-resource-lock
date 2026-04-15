@@ -4,13 +4,17 @@ namespace Androsamp\FilamentResourceLock\Tests;
 
 use Androsamp\FilamentResourceLock\FilamentResourceLockServiceProvider;
 use Androsamp\FilamentResourceLock\Tests\Fixtures\TestUser;
+use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
 abstract class TestCase extends OrchestraTestCase
 {
     protected function getPackageProviders($app): array
     {
-        return [FilamentResourceLockServiceProvider::class];
+        return [
+            LivewireServiceProvider::class,
+            FilamentResourceLockServiceProvider::class,
+        ];
     }
 
     protected function getEnvironmentSetUp($app): void
