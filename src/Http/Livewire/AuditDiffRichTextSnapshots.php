@@ -13,6 +13,7 @@ use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
+/** @property-read Schema $form */
 class AuditDiffRichTextSnapshots extends Component implements HasForms
 {
     use InteractsWithForms;
