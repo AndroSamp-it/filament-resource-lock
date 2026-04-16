@@ -2,8 +2,6 @@
 
 namespace Androsamp\FilamentResourceLock\Support\AuditDiff\Renderers;
 
-use Androsamp\FilamentResourceLock\Support\AuditDiffRenderer;
-
 class RichTextAuditDiffRenderer extends AbstractAuditDiffRenderer
 {
     public function canRender(array $change): bool
@@ -13,9 +11,19 @@ class RichTextAuditDiffRenderer extends AbstractAuditDiffRenderer
 
     public function render(array $change): string
     {
+        $payload = json_encode([
+            'field' => $change['field'] ?? '',
+            'type' => $change['type'] ?? '',
+            'old' => $change['old'] ?? null,
+            'new' => $change['new'] ?? null,
+        ], JSON_UNESCAPED_UNICODE) ?: '';
+
         return $this->renderView('filament-resource-lock::components.audit-diff.renderers.rich-text', [
-            'oldRichContent' => AuditDiffRenderer::renderRichContent($change['old'] ?? null, $change['customBlocks'] ?? []),
-            'newRichContent' => AuditDiffRenderer::renderRichContent($change['new'] ?? null, $change['customBlocks'] ?? []),
+            'editorType' => (string) ($change['type'] ?? 'RichEditor'),
+            'oldValue' => $change['old'] ?? null,
+            'newValue' => $change['new'] ?? null,
+            'customBlockClasses' => $change['customBlocks'] ?? [],
+            'livewireKey' => 'rl-audit-rich-'.md5($payload),
         ]);
     }
 }

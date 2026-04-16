@@ -35,14 +35,11 @@ trait HasResourceAudit
     }
 
     /**
-     * Wrap Filament save flow so audit still works even when a page overrides afterSave().
+     * Capture the pre-save snapshot, run your persistence logic, then record audit changes.
      */
     public function save(bool $shouldRedirect = true, bool $shouldSendSavedNotification = true): void
     {
-        if ($this->isAuditEnabled()) {
-            // Capture "before" state from current record attributes.
-            $this->auditPreviousSnapshot = $this->captureAuditSnapshot();
-        }
+        $this->syncResourceAuditBeforeSave();
 
         parent::save($shouldRedirect, $shouldSendSavedNotification);
 
@@ -60,6 +57,19 @@ trait HasResourceAudit
     protected function getAuditHistoryAction(): Action
     {
         return ShowAuditHistoryAction::make($this->getRecord());
+    }
+    
+    /**
+     * Capture the pre-save snapshot, run your persistence logic, then record audit changes.
+     * Call this before the record is persisted.
+     */
+    public function syncResourceAuditBeforeSave(): void
+    {
+        if (! $this->isAuditEnabled()) {
+            return;
+        }
+
+        $this->auditPreviousSnapshot = $this->captureAuditSnapshot();
     }
 
     /**

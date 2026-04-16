@@ -2,6 +2,7 @@
 
 namespace Androsamp\FilamentResourceLock\Support;
 
+use Filament\Forms\Components\RichEditor\RichContentCustomBlock;
 use Filament\Forms\Components\RichEditor\RichContentRenderer;
 
 class AuditDiffRenderer
@@ -17,21 +18,21 @@ class AuditDiffRenderer
         $new = self::normalizeJson($new);
 
         $allKeys = array_unique(array_merge(array_keys($old), array_keys($new)));
-        $lines   = [];
+        $lines = [];
 
         foreach ($allKeys as $key) {
             $oldVal = $old[$key] ?? null;
             $newVal = $new[$key] ?? null;
 
             if (array_key_exists($key, $old) && ! array_key_exists($key, $new)) {
-                $lines[] = ['type' => 'removed', 'line' => '"' . $key . '": "' . $oldVal . '"'];
+                $lines[] = ['type' => 'removed', 'line' => '"'.$key.'": "'.$oldVal.'"'];
             } elseif (! array_key_exists($key, $old) && array_key_exists($key, $new)) {
-                $lines[] = ['type' => 'added', 'line' => '"' . $key . '": "' . $newVal . '"'];
+                $lines[] = ['type' => 'added', 'line' => '"'.$key.'": "'.$newVal.'"'];
             } elseif ($oldVal !== $newVal) {
-                $lines[] = ['type' => 'removed', 'line' => '"' . $key . '": "' . $oldVal . '"'];
-                $lines[] = ['type' => 'added',   'line' => '"' . $key . '": "' . $newVal . '"'];
+                $lines[] = ['type' => 'removed', 'line' => '"'.$key.'": "'.$oldVal.'"'];
+                $lines[] = ['type' => 'added',   'line' => '"'.$key.'": "'.$newVal.'"'];
             } else {
-                $lines[] = ['type' => 'unchanged', 'line' => '"' . $key . '": "' . $oldVal . '"'];
+                $lines[] = ['type' => 'unchanged', 'line' => '"'.$key.'": "'.$oldVal.'"'];
             }
         }
 
@@ -58,15 +59,15 @@ class AuditDiffRenderer
         $j = 0;
 
         $styleRemoved = 'background:#fecaca;color:#991b1b;text-decoration:line-through;border-radius:3px;padding:0 2px;';
-        $styleAdded   = 'background:#bbf7d0;color:#166534;border-radius:3px;padding:0 2px;';
+        $styleAdded = 'background:#bbf7d0;color:#166534;border-radius:3px;padding:0 2px;';
 
         foreach ($lcs as [$oi, $ni]) {
             while ($i < $oi) {
-                $oldOut .= '<span style="' . $styleRemoved . '">' . e($oldWords[$i]) . '</span>';
+                $oldOut .= '<span style="'.$styleRemoved.'">'.e($oldWords[$i]).'</span>';
                 $i++;
             }
             while ($j < $ni) {
-                $newOut .= '<span style="' . $styleAdded . '">' . e($newWords[$j]) . '</span>';
+                $newOut .= '<span style="'.$styleAdded.'">'.e($newWords[$j]).'</span>';
                 $j++;
             }
             $oldOut .= e($oldWords[$i]);
@@ -76,11 +77,11 @@ class AuditDiffRenderer
         }
 
         while ($i < count($oldWords)) {
-            $oldOut .= '<span style="' . $styleRemoved . '">' . e($oldWords[$i]) . '</span>';
+            $oldOut .= '<span style="'.$styleRemoved.'">'.e($oldWords[$i]).'</span>';
             $i++;
         }
         while ($j < count($newWords)) {
-            $newOut .= '<span style="' . $styleAdded . '">' . e($newWords[$j]) . '</span>';
+            $newOut .= '<span style="'.$styleAdded.'">'.e($newWords[$j]).'</span>';
             $j++;
         }
 
@@ -126,20 +127,85 @@ class AuditDiffRenderer
                 return RichContentRenderer::make($normalized)->toUnsafeHtml();
             } catch (\Throwable) {
                 // Fallback to pretty JSON
-                return '<pre style="background:rgba(0,0,0,.35);border-radius:6px;padding:.7em 1em;overflow-x:auto;font-family:monospace;font-size:.82em;margin:.5em 0;"><code>' . e(json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '') . '</code></pre>';
+                return '<pre style="background:rgba(0,0,0,.35);border-radius:6px;padding:.7em 1em;overflow-x:auto;font-family:monospace;font-size:.82em;margin:.5em 0;"><code>'.e(json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '').'</code></pre>';
             }
         }
 
         if (is_string($normalized)) {
             // If it's a string but we know it's supposed to be RichEditor, and it looks like JSON but failed to decode
             if (str_starts_with(trim($normalized), '{') || str_starts_with(trim($normalized), '[')) {
-                 return '<pre style="background:rgba(0,0,0,.35);border-radius:6px;padding:.7em 1em;overflow-x:auto;font-family:monospace;font-size:.82em;margin:.5em 0;"><code>' . e($normalized) . '</code></pre>';
+                return '<pre style="background:rgba(0,0,0,.35);border-radius:6px;padding:.7em 1em;overflow-x:auto;font-family:monospace;font-size:.82em;margin:.5em 0;"><code>'.e($normalized).'</code></pre>';
             }
 
             return $normalized;
         }
 
         return (string) $normalized;
+    }
+
+    /**
+     * Normalizes stored audit value for filling a Filament RichEditor (TipTap document / HTML).
+     *
+     * @return array<string, mixed>|string
+     */
+    public static function normalizeRichEditorStateForForm(mixed $value): array|string
+    {
+        $emptyDoc = [
+            'type' => 'doc',
+            'content' => [
+                [
+                    'type' => 'paragraph',
+                    'content' => [],
+                ],
+            ],
+        ];
+
+        if ($value === null || $value === '') {
+            return $emptyDoc;
+        }
+
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (! is_string($value)) {
+            return $emptyDoc;
+        }
+
+        $trimmed = trim($value);
+
+        if ($trimmed === '') {
+            return $emptyDoc;
+        }
+
+        $decoded = json_decode($trimmed, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            return $decoded;
+        }
+
+        return $value;
+    }
+
+    public static function normalizeMarkdownEditorStateForForm(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '';
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '';
     }
 
     // -------------------------------------------------------------------------
@@ -155,7 +221,7 @@ class AuditDiffRenderer
             // 1. Try to use the block's native toPreviewHtml() or toHtml()
             $blockClass = null;
             foreach ($customBlocks as $block) {
-                if (is_string($block) && class_exists($block) && is_subclass_of($block, \Filament\Forms\Components\RichEditor\RichContentCustomBlock::class)) {
+                if (is_string($block) && class_exists($block) && is_subclass_of($block, RichContentCustomBlock::class)) {
                     if ($block::getId() === $id) {
                         $blockClass = $block;
                         break;
@@ -167,12 +233,13 @@ class AuditDiffRenderer
                 $html = null;
                 try {
                     $html = $blockClass::toPreviewHtml($config) ?? $blockClass::toHtml($config, []);
-                } catch (\Throwable) {}
+                } catch (\Throwable) {
+                }
 
                 if ($html !== null) {
                     return [
                         'type' => 'renderedCustomBlock',
-                        'html' => '<div class="fi-fo-rich-editor-custom-block-preview fi-not-prose">' . $html . '</div>',
+                        'html' => '<div class="fi-fo-rich-editor-custom-block-preview fi-not-prose">'.$html.'</div>',
                     ];
                 }
             }
@@ -188,15 +255,15 @@ class AuditDiffRenderer
                 if ($decoded) {
                     return [
                         'type' => 'renderedCustomBlock',
-                        'html' => '<div class="fi-fo-rich-editor-custom-block-preview fi-not-prose">' . $decoded . '</div>',
+                        'html' => '<div class="fi-fo-rich-editor-custom-block-preview fi-not-prose">'.$decoded.'</div>',
                     ];
                 }
             }
 
             // 3. Ultimate fallback: show configuration JSON
-            $html = '<div class="fi-fo-rich-editor-custom-block-heading" style="font-size:.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35em;">Block: ' . e($id) . '</div>';
+            $html = '<div class="fi-fo-rich-editor-custom-block-heading" style="font-size:.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35em;">Block: '.e($id).'</div>';
             if (! empty($config)) {
-                $html .= '<pre style="background:rgba(0,0,0,.35);border-radius:6px;padding:.7em 1em;overflow-x:auto;font-family:monospace;font-size:.82em;margin:.5em 0;"><code>' . e(json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?: '') . '</code></pre>';
+                $html .= '<pre style="background:rgba(0,0,0,.35);border-radius:6px;padding:.7em 1em;overflow-x:auto;font-family:monospace;font-size:.82em;margin:.5em 0;"><code>'.e(json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?: '').'</code></pre>';
             }
 
             return [
@@ -279,6 +346,7 @@ class AuditDiffRenderer
             foreach (['label', 'name', 'title', 'value', 'id'] as $key) {
                 if (array_key_exists($key, $item) && $item[$key] !== null && $item[$key] !== '') {
                     $labels[] = (string) $item[$key];
+
                     continue 2;
                 }
             }
@@ -321,7 +389,7 @@ class AuditDiffRenderer
         }
 
         // Build DP table (only two rows at a time to save memory).
-        $dp   = array_fill(0, $n + 1, 0);
+        $dp = array_fill(0, $n + 1, 0);
         $full = [];
 
         for ($i = 1; $i <= $m; $i++) {
@@ -341,8 +409,8 @@ class AuditDiffRenderer
 
         // Backtrack to find the actual LCS pairs.
         $pairs = [];
-        $i     = $m;
-        $j     = $n;
+        $i = $m;
+        $j = $n;
 
         while ($i > 0 && $j > 0) {
             if ($a[$i - 1] === $b[$j - 1]) {

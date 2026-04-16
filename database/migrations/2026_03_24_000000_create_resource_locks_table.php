@@ -36,8 +36,8 @@ return new class extends Migration
             $table->index('expires_at');
 
             // Two-phase release: lock stays visible during the grace period after page unload.
-            $table->boolean('releasing')->default(false)->after('expires_at');
-            $table->timestamp('releasing_expires_at')->nullable()->after('releasing');
+            $table->boolean('releasing')->default(false);
+            $table->timestamp('releasing_expires_at')->nullable();
         });
     }
 

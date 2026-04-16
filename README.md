@@ -248,6 +248,27 @@ class EditProduct extends EditRecord
 
 `HasResourceAudit` works standalone, but together with lock trait it groups entries by `lock_cycle_id`.
 
+### Overriding `save()`
+
+The trait defines `save()` that calls `syncResourceAuditBeforeSave()`, then `parent::save()`, then `syncResourceAuditAfterSave()`. In PHP, a `save()` method on your page class **replaces** the trait’s method entirely, so that wrapper is skipped unless you repeat it.
+
+If you override `save()`, keep audit working by invoking the same two bridges around your persistence (typically `parent::save()`):
+
+```php
+public function save(bool $shouldRedirect = true, bool $shouldSendSavedNotification = true): void
+{
+    $this->syncResourceAuditBeforeSave();
+
+    parent::save($shouldRedirect, $shouldSendSavedNotification);
+
+    $this->syncResourceAuditAfterSave();
+}
+```
+
+If your implementation does not call `parent::save()`, call `syncResourceAuditBeforeSave()` **before** the record is written and `syncResourceAuditAfterSave()` **after** it is successfully persisted (and only then).
+
+There is **no** Filament or PHP mechanism in this package that can inject “always run before/after save” when the page replaces `save()` with a completely custom flow: alternatives such as `beforeSave()` / `afterSave()` suffer from the same issue if those methods are overridden on the page. Until a better integration exists, the explicit calls above are the supported approach.
+
 ### Rollback selected fields
 
 From the audit history slide-over:
