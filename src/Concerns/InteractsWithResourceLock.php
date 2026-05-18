@@ -379,16 +379,20 @@ trait InteractsWithResourceLock
 
     private function onLockAcquired(ResourceLock $lock, Model $record): void
     {
-        // When the lock was force-transferred to this session, clear the takeover
-        // markers and refresh the form so the new owner sees fresh data.
-        if ($this->resourceLockSessionId === $lock->force_takeover_session_id) {
+        $wasWaitingForLock = $this->resourceLockConflict;
+        $isForceTakeoverTarget = $this->resourceLockSessionId === $lock->force_takeover_session_id;
+
+        if ($isForceTakeoverTarget) {
             $this->getResourceLockManager ()->update ($record, [
                 'force_takeover_session_id' => null,
                 'force_takeover_user_id' => null,
             ]);
+        }
 
-            $this->record->refresh ();
-            $this->form->fill ($this->record->attributesToArray ());
+        // Reload the record when this session was blocked or targeted for takeover,
+        // so changes saved by the previous owner appear without a manual cache clear.
+        if ($wasWaitingForLock || $isForceTakeoverTarget) {
+            $this->refreshLockableRecordInForm ();
         }
 
         if (
@@ -401,6 +405,31 @@ trait InteractsWithResourceLock
         $this->resourceLockConflict = false;
         $this->resourceLockOwner = null;
         $this->resourceLockOwnerName = null;
+    }
+
+    /**
+     * Reloads the lockable Eloquent record and repopulates the Filament form.
+     */
+    private function refreshLockableRecordInForm(): void
+    {
+        $record = $this->getLockableRecord ();
+
+        if (! $record) {
+            return;
+        }
+
+        $record->refresh ();
+        $record->unsetRelations ();
+
+        if (method_exists ($this, 'fillForm')) {
+            $this->fillForm ();
+        } elseif (isset ($this->form)) {
+            $this->form->fill ($record->attributesToArray ());
+        }
+
+        if (method_exists ($this, 'captureAuditSnapshot') && property_exists ($this, 'auditPreviousSnapshot')) {
+            $this->auditPreviousSnapshot = $this->captureAuditSnapshot ();
+        }
     }
 
     private function onLockConflict(?ResourceLock $lock, bool $hasPendingRequest): void
