@@ -96,7 +96,7 @@ trait InteractsWithResourceLock
             : false;
 
         if ($result->acquired) {
-            $this->onLockAcquired ($result->lock, $record);
+            $this->onLockAcquired ($result->lock, $record, $wasConflict);
         } else {
             $this->onLockConflict ($result->lock, $hasPendingRequest);
         }
@@ -356,6 +356,31 @@ trait InteractsWithResourceLock
             : url ()->previous ();
     }
 
+    /**
+     * Reloads the record and form after lock ownership changes hands.
+     */
+    protected function refreshRecordFormAfterLockHandoff(): void
+    {
+        $record = $this->getLockableRecord ();
+
+        if (! $record) {
+            return;
+        }
+
+        $record->refresh ();
+        $record->unsetRelations ();
+
+        if (method_exists ($this, 'fillForm')) {
+            $this->fillForm ();
+        } else {
+            $this->form->fill ($record->attributesToArray ());
+        }
+
+        if (property_exists ($this, 'auditPreviousSnapshot') && method_exists ($this, 'captureAuditSnapshot')) {
+            $this->auditPreviousSnapshot = $this->captureAuditSnapshot ();
+        }
+    }
+
     protected function dispatchResourceLockUpdate(string $event, array $payload = []): void
     {
         $record = $this->getLockableRecord ();
@@ -377,18 +402,21 @@ trait InteractsWithResourceLock
     // Lock state handlers
     // -------------------------------------------------------------------------
 
-    private function onLockAcquired(ResourceLock $lock, Model $record): void
+    private function onLockAcquired(ResourceLock $lock, Model $record, bool $wasConflict): void
     {
-        // When the lock was force-transferred to this session, clear the takeover
-        // markers and refresh the form so the new owner sees fresh data.
-        if ($this->resourceLockSessionId === $lock->force_takeover_session_id) {
+        $isForceTakeoverTarget = $this->resourceLockSessionId === ($lock->force_takeover_session_id ?? '');
+
+        if ($isForceTakeoverTarget) {
             $this->getResourceLockManager ()->update ($record, [
                 'force_takeover_session_id' => null,
                 'force_takeover_user_id' => null,
             ]);
+        }
 
-            $this->record->refresh ();
-            $this->form->fill ($this->record->attributesToArray ());
+        // Reload record data when this session was waiting and can now edit, so changes
+        // saved by the previous owner (e.g. via save-and-unlock) appear immediately.
+        if ($wasConflict || $isForceTakeoverTarget) {
+            $this->refreshRecordFormAfterLockHandoff ();
         }
 
         if (

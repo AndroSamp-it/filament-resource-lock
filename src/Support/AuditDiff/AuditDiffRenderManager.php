@@ -20,13 +20,13 @@ class AuditDiffRenderManager
     public function __construct()
     {
         $this->renderers = [
-            new ToggleAuditDiffRenderer(),
-            new SelectAuditDiffRenderer(),
-            new JsonAuditDiffRenderer(),
-            new RichTextAuditDiffRenderer(),
-            new CustomPreviewAuditDiffRenderer(),
-            new NumericTextAuditDiffRenderer(),
-            new DefaultAuditDiffRenderer(),
+            new ToggleAuditDiffRenderer,
+            new SelectAuditDiffRenderer,
+            new JsonAuditDiffRenderer,
+            new RichTextAuditDiffRenderer,
+            new CustomPreviewAuditDiffRenderer,
+            new NumericTextAuditDiffRenderer,
+            new DefaultAuditDiffRenderer,
         ];
     }
 

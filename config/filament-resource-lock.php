@@ -66,7 +66,7 @@ return [
     ],
 
     'audit' => [
-        'enabled' => false,
+        'enabled' => true,
         'table' => 'resource_lock_audits',
         'max_entries_per_resource' => 500,
     ],
