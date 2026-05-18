@@ -121,12 +121,14 @@ class ResourceAuditHistoryTable extends Component implements HasActions, HasForm
                         }
 
                         try {
+                            $displayColumn = (string) config('filament-resource-lock.user_display_column', 'name');
+
                             app(ResourceAuditService::class)->rollbackFieldsFromAudit(
                                 audit: $record,
                                 fields: $fields,
                                 actorUserId: auth()->id(),
                                 actorSessionId: session()->getId(),
-                                actorDisplayName: auth()->user()?->{(string) config('filament-resource-lock.user_display_column', 'name')} ?? __('filament-resource-lock::resource-lock.other_user'),
+                                actorDisplayName: (string) (data_get(auth()->user(), $displayColumn) ?? __('filament-resource-lock::resource-lock.other_user')),
                             );
 
                             Notification::make()

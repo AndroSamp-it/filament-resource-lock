@@ -96,15 +96,6 @@
             return true;
         };
 
-        const onEchoLoaded = () => {
-            if (subscribe()) {
-                clearInterval(echoBootTimer);
-                echoBootTimer = null;
-            }
-        };
-        window.addEventListener('EchoLoaded', onEchoLoaded);
-        $el._frlOnEchoLoaded = onEchoLoaded;
-
         if (! subscribe()) {
             let attempts = 0;
             echoBootTimer = setInterval(() => {
@@ -121,7 +112,6 @@
         }
     "
         x-destroy="
-            window.removeEventListener('EchoLoaded', $el._frlOnEchoLoaded);
             clearInterval(echoBootTimer);
             clearTimeout(releaseHeartbeatTimer);
             clearInterval(renewTimer);

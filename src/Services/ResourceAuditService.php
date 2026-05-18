@@ -24,7 +24,7 @@ class ResourceAuditService
         ?string $actorSessionId,
         ?string $actorDisplayName,
     ): ?ResourceLockAudit {
-        $selectedFields = array_values(array_unique(array_filter($fields, static fn (mixed $field): bool => is_string($field) && $field !== '')));
+        $selectedFields = array_values(array_unique(array_filter($fields, static fn (string $field): bool => $field !== '')));
 
         if (empty($selectedFields)) {
             throw new RuntimeException('No fields were selected for rollback.');
