@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -207,6 +208,17 @@ class ResourceLockManager
     // -------------------------------------------------------------------------
 
     protected function acquireOrRefreshFromDatabase(Model $record, ?int $userId, ?string $sessionId): LockResult
+    {
+        try {
+            return $this->doAcquireOrRefreshFromDatabase($record, $userId, $sessionId);
+        } catch (UniqueConstraintViolationException) {
+            // Two concurrent requests both saw no lock row and both attempted INSERT.
+            // Retry once — the row now exists, so we will hit the UPDATE path.
+            return $this->doAcquireOrRefreshFromDatabase($record, $userId, $sessionId);
+        }
+    }
+
+    private function doAcquireOrRefreshFromDatabase(Model $record, ?int $userId, ?string $sessionId): LockResult
     {
         $now = CarbonImmutable::now();
         $expiresAt = $now->addSeconds((int) config('filament-resource-lock.ttl_seconds', 30));
