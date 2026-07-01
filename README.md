@@ -7,7 +7,7 @@ When one user edits a record, others immediately see who owns the lock, get bloc
 ## Preview
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/AndroSamp-it/filament-resource-lock/refs/heads/main/plugin-preview.png" alt="Filament Resource Lock preview" width="1100">
+  <img src="https://raw.githubusercontent.com/AndroSamp-it/filament-resource-lock/refs/heads/main/plugin-preview.jpg" alt="Filament Resource Lock preview" width="1100">
 </p>
 
 <p align="center">
