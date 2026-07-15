@@ -2,7 +2,8 @@ version: 2
 updates:
   - package-ecosystem: "composer"
     directory: "/"
-    cooldown: 5
+    cooldown:
+      default-days: 5
     schedule:
       interval: "weekly"
     commit-message:
@@ -10,7 +11,8 @@ updates:
       include: "scope"
   - package-ecosystem: "github-actions"
     directory: "/"
-    cooldown: 5
+    cooldown:
+      default-days: 5
     schedule:
       interval: "weekly"
     commit-message:
