@@ -4,6 +4,10 @@ return [
     'other_user' => 'another user',
     'locked_by' => 'Locked by :user',
 
+    'list' => [
+        'creator' => 'Created by',
+    ],
+
     'blocked_resource_notice_modal' => [
         'label' => 'Resource locked',
         'heading' => 'Resource is being edited',
@@ -55,10 +59,16 @@ return [
 
         'columns' => [
             'version'    => 'Version',
+            'event'      => 'Type',
             'date'       => 'Date',
             'author'     => 'Author',
             'changes'    => 'Changes',
             'lock_cycle' => 'Lock session',
+        ],
+
+        'events' => [
+            'created' => 'Created',
+            'saved'   => 'Updated',
         ],
 
         'actions' => [
@@ -79,15 +89,17 @@ return [
         ],
 
         'diff' => [
-            'modal_heading'   => 'What changed · v:version',
-            'heading'         => 'What changed',
-            'was'             => 'WAS',
-            'became'          => 'BECAME',
-            'yes'             => 'Yes',
-            'no'              => 'No',
-            'changes_count'   => 'changes',
-            'snapshot_date'   => 'Snapshot from :date · :author',
-            'snapshot_meta'   => 'Snapshot from :date · :author',
+            'modal_heading'         => 'What changed · v:version',
+            'modal_heading_created' => 'Initial creation · v:version',
+            'heading'               => 'What changed',
+            'heading_created'       => 'Initial values',
+            'was'                   => 'WAS',
+            'became'                => 'BECAME',
+            'yes'                   => 'Yes',
+            'no'                    => 'No',
+            'changes_count'         => 'changes',
+            'snapshot_date'         => 'Snapshot from :date · :author',
+            'snapshot_meta'         => 'Snapshot from :date · :author',
         ],
     ],
 ];

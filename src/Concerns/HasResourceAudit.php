@@ -46,6 +46,15 @@ trait HasResourceAudit
         $this->syncResourceAuditAfterSave();
     }
 
+    /**
+     * Filament CreateRecord hook — records the initial creation snapshot.
+     * If you override afterCreate(), call syncResourceAuditAfterCreate() yourself.
+     */
+    protected function afterCreate(): void
+    {
+        $this->syncResourceAuditAfterCreate();
+    }
+
     // -------------------------------------------------------------------------
     // Public API
     // -------------------------------------------------------------------------
@@ -83,6 +92,20 @@ trait HasResourceAudit
         }
 
         $this->recordAuditEntry();
+    }
+
+    /**
+     * Public bridge for CreateRecord pages that override afterCreate().
+     * Call this after the record is successfully created.
+     */
+    public function syncResourceAuditAfterCreate(): void
+    {
+        if (! $this->isAuditEnabled()) {
+            return;
+        }
+
+        $this->auditPreviousSnapshot = [];
+        $this->recordAuditEntry(forceCreatedEvent: true);
     }
 
     #[On('resourceLock::auditRolledBack')]
@@ -369,7 +392,7 @@ trait HasResourceAudit
     // Recording
     // -------------------------------------------------------------------------
 
-    private function recordAuditEntry(): void
+    private function recordAuditEntry(bool $forceCreatedEvent = false): void
     {
         $record = method_exists($this, 'getRecord') ? $this->getRecord() : null;
 
@@ -388,6 +411,9 @@ trait HasResourceAudit
             return;
         }
 
+        $isCreated = $forceCreatedEvent
+            || (empty($oldSnapshot) && $service->isFirstVersion($record));
+
         $lockCycleId = $this->resolveCurrentLockCycleId();
 
         $service->recordSnapshot(
@@ -398,6 +424,7 @@ trait HasResourceAudit
             actorDisplayName:   $this->resolveAuditActorName(),
             snapshot:           $newSnapshot,
             changes:            $changes,
+            event:              $isCreated ? 'created' : 'saved',
         );
 
         // Update baseline so the next save computes delta from the current state.

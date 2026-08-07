@@ -11,7 +11,6 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
-use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -45,6 +44,18 @@ class ResourceAuditHistoryTable extends Component implements HasActions, HasForm
                     ->formatStateUsing(fn (int $state): string => 'v' . $state)
                     ->sortable(),
 
+                TextColumn::make('event')
+                    ->label(__('filament-resource-lock::resource-lock.audit.columns.event'))
+                    ->badge()
+                    ->formatStateUsing(
+                        fn (string $state): string => __('filament-resource-lock::resource-lock.audit.events.' . $state)
+                    )
+                    ->color(fn (string $state): string => match ($state) {
+                        'created' => 'success',
+                        'saved' => 'gray',
+                        default => 'gray',
+                    }),
+
                 TextColumn::make('created_at')
                     ->label(__('filament-resource-lock::resource-lock.audit.columns.date'))
                     ->dateTime('d M Y, H:i')
@@ -58,7 +69,7 @@ class ResourceAuditHistoryTable extends Component implements HasActions, HasForm
                     ->label(__('filament-resource-lock::resource-lock.audit.columns.changes'))
                     ->getStateUsing(fn (ResourceLockAudit $record): int => count($record->changes ?? []))
                     ->badge()
-                    ->color('primary'),
+                    ->color(fn (ResourceLockAudit $record): string => $record->event === 'created' ? 'success' : 'primary'),
 
                 TextColumn::make('lock_cycle_id')
                     ->label(__('filament-resource-lock::resource-lock.audit.columns.lock_cycle'))
@@ -72,7 +83,9 @@ class ResourceAuditHistoryTable extends Component implements HasActions, HasForm
                     ->icon('heroicon-o-magnifying-glass')
                     ->color('gray')
                     ->modalHeading(
-                        fn (ResourceLockAudit $record) => __('filament-resource-lock::resource-lock.audit.diff.modal_heading', ['version' => $record->version])
+                        fn (ResourceLockAudit $record) => $record->event === 'created'
+                            ? __('filament-resource-lock::resource-lock.audit.diff.modal_heading_created', ['version' => $record->version])
+                            : __('filament-resource-lock::resource-lock.audit.diff.modal_heading', ['version' => $record->version])
                     )
                     ->modalContent(
                         fn (ResourceLockAudit $record) => view('filament-resource-lock::components.audit-diff', ['audit' => $record])
@@ -83,6 +96,7 @@ class ResourceAuditHistoryTable extends Component implements HasActions, HasForm
                     ->label(__('filament-resource-lock::resource-lock.audit.actions.rollback_changes'))
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('warning')
+                    ->visible(fn (ResourceLockAudit $record): bool => $record->event !== 'created')
                     ->form([
                         CheckboxList::make('fields')
                             ->label(__('filament-resource-lock::resource-lock.audit.rollback.fields_label'))

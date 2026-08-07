@@ -9,7 +9,9 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:14px;margin-bottom:4px;border-bottom:1px solid rgba(148,163,184,.2);">
         <div>
             <div style="font-size:.875rem;font-weight:600;color:inherit;margin-bottom:2px;">
-                {{ __('filament-resource-lock::resource-lock.audit.diff.heading') }}
+                {{ $audit->event === 'created'
+                    ? __('filament-resource-lock::resource-lock.audit.diff.heading_created')
+                    : __('filament-resource-lock::resource-lock.audit.diff.heading') }}
             </div>
             <div style="font-size:.75rem;color:#94a3b8;">
                 {{ __('filament-resource-lock::resource-lock.audit.diff.snapshot_date', [
@@ -19,6 +21,11 @@
             </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            @if ($audit->event === 'created')
+                <span style="display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;background:#14532d;color:#86efac;">
+                    {{ __('filament-resource-lock::resource-lock.audit.events.created') }}
+                </span>
+            @endif
             <span style="display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;background:#1e40af;color:#bfdbfe;">
                 v{{ $audit->version }}
             </span>

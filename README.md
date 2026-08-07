@@ -113,6 +113,7 @@ class EditCustomer extends EditRecord
 ### 3) Show lock indicator in list table
 
 ```php
+use Androsamp\FilamentResourceLock\Resources\Columns\ResourceAuditCreatorColumn;
 use Androsamp\FilamentResourceLock\Resources\Columns\ResourceLockColumn;
 use Filament\Tables\Table;
 
@@ -120,10 +121,13 @@ public static function table(Table $table): Table
 {
     return $table->columns([
         ResourceLockColumn::make(),
+        ResourceAuditCreatorColumn::make(), // requires audit create capture on CreateRecord
         // ...
     ]);
 }
 ```
+
+`ResourceAuditCreatorColumn` reads the `created` audit entry and shows the creator’s display name (`—` when missing).
 
 ---
 
@@ -247,6 +251,24 @@ class EditProduct extends EditRecord
 ```
 
 `HasResourceAudit` works standalone, but together with lock trait it groups entries by `lock_cycle_id`.
+
+### Add audit to `CreateRecord`
+
+To capture the **initial creation** of a record (with a distinct “Created” badge in history), add the same trait to the create page:
+
+```php
+use Androsamp\FilamentResourceLock\Concerns\HasResourceAudit;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateProduct extends CreateRecord
+{
+    use HasResourceAudit;
+}
+```
+
+The trait hooks `afterCreate()` and stores version `v1` with `event = created`. Later edits are stored as `saved` / “Updated”.
+
+If you override `afterCreate()`, call `syncResourceAuditAfterCreate()` after the record is persisted.
 
 ### Overriding `save()`
 

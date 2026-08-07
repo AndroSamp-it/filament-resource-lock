@@ -4,6 +4,10 @@ return [
     'other_user' => 'другой пользователь',
     'locked_by' => 'Редактирует :user',
 
+    'list' => [
+        'creator' => 'Создал',
+    ],
+
     'blocked_resource_notice_modal' => [
         'label' => 'Ресурс заблокирован',
         'heading' => 'Ресурс сейчас редактируется',
@@ -55,10 +59,16 @@ return [
 
         'columns' => [
             'version'    => 'Версия',
+            'event'      => 'Тип',
             'date'       => 'Дата',
             'author'     => 'Автор',
             'changes'    => 'Изменений',
             'lock_cycle' => 'Сессия блокировки',
+        ],
+
+        'events' => [
+            'created' => 'Создание',
+            'saved'   => 'Изменение',
         ],
 
         'actions' => [
@@ -79,15 +89,17 @@ return [
         ],
 
         'diff' => [
-            'modal_heading'   => 'Что изменилось · v:version',
-            'heading'         => 'Что изменилось',
-            'was'             => 'БЫЛО',
-            'became'          => 'СТАЛО',
-            'yes'             => 'Да',
-            'no'              => 'Нет',
-            'changes_count'   => 'изменений',
-            'snapshot_date'   => 'Снимок от :date · :author',
-            'snapshot_meta'   => 'Снимок от :date · :author',
+            'modal_heading'         => 'Что изменилось · v:version',
+            'modal_heading_created' => 'Первичное создание · v:version',
+            'heading'               => 'Что изменилось',
+            'heading_created'       => 'Начальные значения',
+            'was'                   => 'БЫЛО',
+            'became'                => 'СТАЛО',
+            'yes'                   => 'Да',
+            'no'                    => 'Нет',
+            'changes_count'         => 'изменений',
+            'snapshot_date'         => 'Снимок от :date · :author',
+            'snapshot_meta'         => 'Снимок от :date · :author',
         ],
     ],
 ];

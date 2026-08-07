@@ -113,7 +113,7 @@ class ResourceAuditService
     }
 
     /**
-     * Records a snapshot audit entry (called on form save).
+     * Records a snapshot audit entry (called on form save / create).
      *
      * @param  array<string, mixed>  $snapshot  Full form snapshot: field => {value, label, type}
      * @param  array<int, array<string, mixed>>  $changes  Changed fields: [{field, label, type, old, new, old_preview_html?, new_preview_html?, ...}]
@@ -126,6 +126,7 @@ class ResourceAuditService
         ?string $actorDisplayName,
         array $snapshot,
         array $changes,
+        string $event = 'saved',
     ): ResourceLockAudit {
         $version = $this->nextVersion($record);
 
@@ -134,7 +135,7 @@ class ResourceAuditService
             'lockable_id'        => $record->getKey(),
             'lock_cycle_id'      => $lockCycleId,
             'version'            => $version,
-            'event'              => 'saved',
+            'event'              => $event,
             'actor_user_id'      => $actorUserId,
             'actor_session_id'   => $actorSessionId,
             'actor_display_name' => $actorDisplayName,
@@ -145,6 +146,18 @@ class ResourceAuditService
         $this->pruneIfNeeded($record);
 
         return $entry;
+    }
+
+    /** True when this resource has no versioned snapshot yet (first audit entry). */
+    public function isFirstVersion(Model $record): bool
+    {
+        $table = config('filament-resource-lock.audit.table', 'resource_lock_audits');
+
+        return ! DB::table($table)
+            ->where('lockable_type', $record::class)
+            ->where('lockable_id', $record->getKey())
+            ->whereNotNull('version')
+            ->exists();
     }
 
     /**
@@ -217,6 +230,48 @@ class ResourceAuditService
         }
 
         return $changes;
+    }
+
+    /**
+     * Returns the audit entry that represents initial creation of the resource.
+     */
+    public function getCreationAudit(Model $record): ?ResourceLockAudit
+    {
+        /** @var ResourceLockAudit|null $entry */
+        $entry = ResourceLockAudit::query()
+            ->where('lockable_type', $record::class)
+            ->where('lockable_id', $record->getKey())
+            ->where('event', 'created')
+            ->orderBy('version')
+            ->orderBy('id')
+            ->first();
+
+        return $entry;
+    }
+
+    /**
+     * Display name of the user who created the resource, from the creation audit entry.
+     */
+    public function getCreatorDisplayName(Model $record): ?string
+    {
+        $entry = $this->getCreationAudit($record);
+
+        if (! $entry) {
+            return null;
+        }
+
+        if (! empty($entry->actor_display_name)) {
+            return (string) $entry->actor_display_name;
+        }
+
+        $user = $entry->relationLoaded('actor') ? $entry->actor : $entry->actor()->first();
+        $column = (string) config('filament-resource-lock.user_display_column', 'name');
+
+        if (! $user) {
+            return (string) __('filament-resource-lock::resource-lock.other_user');
+        }
+
+        return (string) ($user->{$column} ?? $user->getKey() ?? __('filament-resource-lock::resource-lock.other_user'));
     }
 
     /**
