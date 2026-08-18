@@ -8,6 +8,7 @@ use Androsamp\FilamentResourceLock\Http\Livewire\AuditDiffRichTextSnapshots;
 use Androsamp\FilamentResourceLock\Http\Livewire\ResourceAuditHistoryTable;
 use Androsamp\FilamentResourceLock\Http\Livewire\ResourceLockObserver;
 use Androsamp\FilamentResourceLock\Services\ResourceAuditService;
+use Androsamp\FilamentResourceLock\Services\ResourceLockUpdateDispatcher;
 use Androsamp\FilamentResourceLock\Transports\BroadcastResourceLockUpdateTransport;
 use Androsamp\FilamentResourceLock\Transports\HeartbeatResourceLockUpdateTransport;
 use Illuminate\Support\Facades\Broadcast;
